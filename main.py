@@ -3,14 +3,23 @@ import requests
 import subprocess
 from pyrogram import Client, filters
 from pyrogram.types import Message
+from pymongo import MongoClient
+import Message, InlineKeyboardMarkup, InlineKeyboardButton
+
+# Initialize MongoDB connection
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["sujalbot"]
+user_collection = db["sujalbot"] 
 
 # Replace with your API ID, API Hash, and Bot Token
-API_ID = "26307640"
-API_HASH = "e8b89d09asase2e752c7034f497322f0e20a"
-BOT_TOKEN = "755sas3:AAFvHTgS_7cAzasasasP0dPfhGpasygsDR6Bn5NyoKE"
+OWNER = "" 
+API_ID = os.getenv("API_ID", "")
+API_HASH = os.getenv("API_HASH", "")
+TOKEN = os.environ["BOT_TOKEN"]
 
 # Telegram channel where files will be forwarded
-CHANNEL_USERNAME = "Internationalstudyorganization"  # Replace with your channel username
+CHANNEL_USERNAME = ""  # Replace with your channel username
 
 # Initialize Pyrogram Client
 app = Client("my_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
@@ -50,7 +59,7 @@ def categorize_urls(urls):
 
         elif "/master.mpd" in url:
             vid_id = url.split("/")[-2]
-            new_url = f"https://player.muftukmall.site/?id={vid_id}"
+            new_url = f"https://player.rarestudy.site/?id={vid_id}"
             videos.append((name, new_url))
 
         elif ".zip" in url:
@@ -79,372 +88,69 @@ def categorize_urls(urls):
     return videos, pdfs, others
 
 # Function to generate HTML file with Video.js player
-def generate_html(file_name, videos, pdfs, others):
-    file_name_without_extension = os.path.splitext(file_name)[0]
+html_content = f"""<!DOCTYPE html><html><head><meta charset='utf-8'><title>{html.escape(file_name)}</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'/>
+  <style>
+    body {{ background: #0a0a0a; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; overflow-x: hidden; }}
+    .player-box {{ max-width: 900px; margin: auto; text-align: center; }}
+    video {{ width: 100%; border-radius: 12px; box-shadow: 0 0 15px #00ffe0; }}
+    #videoTitle {{ font-size: 20px; font-weight: bold; color: #00ffe0; margin: 10px 0 30px; }}
+    .tabs {{ display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }}
+    .tab-button {{ padding: 12px 20px; font-size: 16px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid #444; border-radius: 8px; cursor: pointer; font-weight: bold; transition: all 0.3s; }}
+    .tab-button:hover {{ background: #00ffe0; color: #000; }}
+    .tab-button.active {{ background: linear-gradient(135deg, #00ffe0, #00ffa2); color: #000; box-shadow: 0 0 12px #00ffe0; }}
+    .video {{ background: #1c1c1c; padding: 14px 18px; border-radius: 10px; font-size: 15px; font-weight: 500; transition: 0.3s ease; border-left: 4px solid #00ffe0; margin-bottom: 12px; }}
+    .video:hover {{ transform: translateX(6px); background: #2a2a2a; box-shadow: 0 0 10px #00ffe0; }}
+    a {{ color: inherit; text-decoration: none; }}
+    .footer {{ text-align: center; margin-top: 30px; font-size: 13px; color: #888; }}
+    .footer a {{ color: #00ffe0; }}
+  </style>
+</head><body>
+  <div class="player-box"><video id="player" controls autoplay playsinline>
+    <source src="" type="application/x-mpegURL">Your browser does not support the video tag.
+  </video><div id="videoTitle"></div></div>
+  <div class="tabs">
+    <button class="tab-button" onclick="showTab('video')">📺 video</button>
+    <button class="tab-button" onclick="showTab('pdf')">📄 pdf</button>
+    <button class="tab-button" onclick="showTab('other')">🧩 other</button>
+  </div>
+  {html_blocks}
+  <div class="footer">ᗪEᐯEᒪOᑭEᗪ ᗷY <a href="https://t.me/Lallantoop">𓍯𝙎𝙪𝙟𝙖𝙡⚝</a></div>
+  <script>
+    function playVideo(url, title) {{
+      const player = document.getElementById('player');
+      const videoTitle = document.getElementById('videoTitle');
+      player.src = url; videoTitle.textContent = title;
+      window.scrollTo({{ top: 0, behavior: 'smooth' }}); player.play();
+    }}
+    function showTab(tabId) {{
+      const tabs = document.querySelectorAll('.tab-content');
+      tabs.forEach(tab => tab.style.display = 'none');
+      document.getElementById(tabId).style.display = 'block';
+      const buttons = document.querySelectorAll('.tab-button');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }}
+    document.addEventListener("DOMContentLoaded", () => {{ showTab('video'); }});
+  </script>
+</body></html>"""
 
-    video_links = "".join(f'<a href="#" onclick="playVideo(\'{url}\')">{name}</a>' for name, url in videos)
-    pdf_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in pdfs)
-    other_links = "".join(f'<a href="{url}" target="_blank">{name}</a>' for name, url in others)
+    with open(html_path, 'w', encoding='utf-8') as f:
+        f.write(html_content)
 
-    html_template = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{file_name_without_extension}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
-    <style>
-        * {{
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Arial', sans-serif;
-        }}
+    return len(sections['video']['items']), len(sections['pdf']['items']), len(sections['other']['items'])
 
-        body {{
-            background: #f5f7fa;
-            color: #333;
-            line-height: 1.6;
-        }}
+def start_keyboard():
+    keyboard = InlineKeyboardMarkup()
+    keyboard.row(
+        InlineKeyboardButton("ＣＨＡＮＮＥＬ", url="https://t.me/studywithsv"),
+        InlineKeyboardButton("ＯＷＮＥＲ", url="https://t.me/Lallantoop")
+    )
+    return keyboard
 
-        .header {{
-            background: #1c1c1c;
-            color: white;
-            padding: 20px;
-            text-align: center;
-            font-size: 24px;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }}
-
-        .subheading {{
-            font-size: 16px;
-            margin-top: 10px;
-            color: #ccc;
-            font-weight: normal;
-        }}
-
-        .subheading a {{
-            color: #ffeb3b;
-            text-decoration: none;
-            font-weight: bold;
-        }}
-
-        #video-player {{
-            margin: 20px auto;
-            width: 90%;
-            max-width: 800px;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            background: #1c1c1c;
-            padding: 10px;
-        }}
-
-        #url-input-container {{
-            display: none;
-            margin: 20px auto;
-            width: 90%;
-            max-width: 600px;
-            text-align: center;
-        }}
-
-        #url-input-container input {{
-            width: 70%;
-            padding: 10px;
-            border: 2px solid #007bff;
-            border-radius: 5px;
-            font-size: 16px;
-            margin-right: 10px;
-        }}
-
-        #url-input-container button {{
-            width: 25%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            font-size: 16px;
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-            transition: background 0.3s ease;
-        }}
-
-        #url-input-container button:hover {{
-            background: #0056b3;
-        }}
-
-        .search-bar {{
-            margin: 20px auto;
-            width: 90%;
-            max-width: 600px;
-            text-align: center;
-        }}
-
-        .search-bar input {{
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #007bff;
-            border-radius: 5px;
-            font-size: 16px;
-        }}
-
-        .no-results {{
-            color: red;
-            font-weight: bold;
-            margin-top: 20px;
-            text-align: center;
-            display: none;
-        }}
-
-        .container {{
-            display: flex;
-            justify-content: space-around;
-            margin: 20px auto;
-            width: 90%;
-            max-width: 800px;
-        }}
-
-        .tab {{
-            flex: 1;
-            padding: 15px;
-            background: white;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            transition: all 0.3s ease;
-            border-radius: 10px;
-            font-size: 18px;
-            font-weight: bold;
-            text-align: center;
-            margin: 0 5px;
-        }}
-
-        .tab:hover {{
-            background: #007bff;
-            color: white;
-            transform: translateY(-5px);
-        }}
-
-        .content {{
-            display: none;
-            margin: 20px auto;
-            width: 90%;
-            max-width: 800px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }}
-
-        .content h2 {{
-            font-size: 22px;
-            margin-bottom: 15px;
-            color: #007bff;
-        }}
-
-        .video-list, .pdf-list, .other-list {{
-            text-align: left;
-        }}
-
-        .video-list a, .pdf-list a, .other-list a {{
-            display: block;
-            padding: 10px;
-            background: #f5f7fa;
-            margin: 5px 0;
-            border-radius: 5px;
-            text-decoration: none;
-            color: #007bff;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }}
-
-        .video-list a:hover, .pdf-list a:hover, .other-list a:hover {{
-            background: #007bff;
-            color: white;
-            transform: translateX(10px);
-        }}
-
-        .footer {{
-            margin-top: 30px;
-            font-size: 16px;
-            font-weight: bold;
-            padding: 15px;
-            background: #1c1c1c;
-            color: white;
-            text-align: center;
-            border-radius: 10px;
-        }}
-
-        .footer a {{
-            color: #ffeb3b;
-            text-decoration: none;
-            font-weight: bold;
-        }}
-    </style>
-</head>
-<body>
-    <div class="header">
-        {file_name_without_extension}
-        <div class="subheading">📥 Extracted By: <a href="https://t.me/gjskisb" target="_blank">sachin yadav Nitin yadav™</a></div>
-    </div>
-
-    <div id="video-player">
-        <video id="engineer-babu-player" class="video-js vjs-default-skin" controls preload="auto" width="640" height="360">
-            <p class="vjs-no-js">
-                To view this video please enable JavaScript, and consider upgrading to a web browser that
-                <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
-            </p>
-        </video>
-    </div>
-
-    <div id="url-input-container">
-        <input type="text" id="url-input" placeholder="Enter video URL to play...">
-        <button onclick="playCustomUrl()">Play</button>
-    </div>
-
-    <button onclick="toggleUrlInput()" style="margin: 20px auto; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; display: block; width: 90%; max-width: 600px;">Enter Custom URL</button>
-
-    <div class="search-bar">
-        <input type="text" id="searchInput" placeholder="Search for videos, PDFs, or other resources..." oninput="filterContent()">
-    </div>
-
-    <div id="noResults" class="no-results">No results found.</div>
-
-    <div class="container">
-        <div class="tab" onclick="showContent('videos')">Videos</div>
-        <div class="tab" onclick="showContent('pdfs')">PDFs</div>
-        <div class="tab" onclick="showContent('others')">Others</div>
-    </div>
-
-    <div id="videos" class="content">
-        <h2>All Video Lectures</h2>
-        <div class="video-list">
-            {video_links}
-        </div>
-    </div>
-
-    <div id="pdfs" class="content">
-        <h2>All PDFs</h2>
-        <div class="pdf-list">
-            {pdf_links}
-        </div>
-    </div>
-
-    <div id="others" class="content">
-        <h2>Other Resources</h2>
-        <div class="other-list">
-            {other_links}
-        </div>
-    </div>
-
-    <div class="footer">Extracted By - <a href="https://t.me/gjskisb" target="_blank">Sachin yadav Nitin yadav</a></div>
-
-    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
-    <script>
-        const player = videojs('engineer-babu-player', {{
-            controls: true,
-            autoplay: false,
-            preload: 'auto',
-            fluid: true,
-            controlBar: {{
-                children: [
-                    'playToggle',
-                    'volumePanel',
-                    'currentTimeDisplay',
-                    'timeDivider',
-                    'durationDisplay',
-                    'progressControl',
-                    'liveDisplay',
-                    'remainingTimeDisplay',
-                    'customControlSpacer',
-                    'playbackRateMenuButton',
-                    'chaptersButton',
-                    'descriptionsButton',
-                    'subsCapsButton',
-                    'audioTrackButton',
-                    'fullscreenToggle'
-                ]
-            }}
-        }});
-
-        function playVideo(url) {{
-            if (url.includes('.m3u8')) {{
-                document.getElementById('video-player').style.display = 'block';
-                player.src({{ src: url, type: 'application/x-mpegURL' }});
-                player.play().catch(() => {{
-                    window.open(url, '_blank');
-                }});
-            }} else {{
-                window.open(url, '_blank');
-            }}
-        }}
-
-        function toggleUrlInput() {{
-            const urlInputContainer = document.getElementById('url-input-container');
-            urlInputContainer.style.display = urlInputContainer.style.display === 'none' ? 'block' : 'none';
-        }}
-
-        function playCustomUrl() {{
-            const url = document.getElementById('url-input').value;
-            if (url) {{
-                playVideo(url);
-            }}
-        }}
-
-        function showContent(tabName) {{
-            const contents = document.querySelectorAll('.content');
-            contents.forEach(content => {{
-                content.style.display = 'none';
-            }});
-            const selectedContent = document.getElementById(tabName);
-            if (selectedContent) {{
-                selectedContent.style.display = 'block';
-            }}
-            filterContent();
-        }}
-
-        function filterContent() {{
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const categories = ['videos', 'pdfs', 'others'];
-            let hasResults = false;
-
-            categories.forEach(category => {{
-                const items = document.querySelectorAll(`#${{category}} .${{category}}-list a`);
-                let categoryHasResults = false;
-
-                items.forEach(item => {{
-                    const itemText = item.textContent.toLowerCase();
-                    if (itemText.includes(searchTerm)) {{
-                        item.style.display = 'block';
-                        categoryHasResults = true;
-                        hasResults = true;
-                    }} else {{
-                        item.style.display = 'none';
-                    }}
-                }});
-
-                const categoryHeading = document.querySelector(`#${{category}} h2`);
-                if (categoryHeading) {{
-                    categoryHeading.style.display = categoryHasResults ? 'block' : 'none';
-                }}
-            }});
-
-            const noResultsMessage = document.getElementById('noResults');
-            if (noResultsMessage) {{
-                noResultsMessage.style.display = hasResults ? 'none' : 'block';
-            }}
-        }}
-
-        document.addEventListener('DOMContentLoaded', () => {{
-            showContent('videos');
-        }});
-    </script>
-</body>
-</html>
-    """
-    return html_template
+# ✅ MongoDB me user ID save karo (agar pehle se nahi hai)
+    if not user_collection.find_one({"_id": user_id}):
+        user_collection.insert_one({"_id": user_id})
 
 # Function to download video using FFmpeg
 def download_video(url, output_path):
@@ -485,7 +191,7 @@ async def handle_file(client: Client, message: Message):
         f.write(html_content)
 
     # Send the HTML file to the user
-    await message.reply_document(document=html_file_path, caption="✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!\n\n📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : International study organization™")
+    await message.reply_document(document=html_file_path, caption="✅ 𝐒𝐮𝐜𝐜𝐞𝐬𝐬𝐟𝐮𝐥𝐥𝐲 𝐃𝐨𝐧𝐞!\n\n📥 𝐄𝐱𝐭𝐫𝐚𝐜𝐭𝐞𝐝 𝐁𝐲 : Jerry™")
 
     # Forward the .txt file to the channel
     await client.send_document(chat_id=CHANNEL_USERNAME, document=file_path)
